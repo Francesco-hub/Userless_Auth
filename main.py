@@ -5,12 +5,79 @@ from tkinter.filedialog import askopenfilename
 import cv2
 import numpy as np
 import os
+from PyQt5 import QtWidgets, QtCore
+from PyQt5.QtWidgets import QApplication,QMainWindow
 import PIL
+import mysql.connector
 
 
 def confidence(img,template):
   return  (cv2.matchTemplate(img, template, cv2.TM_CCOEFF_NORMED).max())
 
+class Ui_MainWindow(object):
+    def setupUi(self, MainWindow):
+        MainWindow.setObjectName("MainWindow")
+        MainWindow.resize(815, 609)
+        self.centralwidget = QtWidgets.QWidget(MainWindow)
+        self.centralwidget.setObjectName("centralwidget")
+        self.button1 = QtWidgets.QPushButton(self.centralwidget)
+        self.button1.setGeometry(QtCore.QRect(290, 330, 221, 181))
+        self.button1.setObjectName("button1")
+        self.label1 = QtWidgets.QLabel(self.centralwidget)
+        self.label1.setGeometry(QtCore.QRect(360, 140, 221, 16))
+        self.label1.setObjectName("label1")
+        MainWindow.setCentralWidget(self.centralwidget)
+        self.menubar = QtWidgets.QMenuBar(MainWindow)
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 815, 21))
+        self.menubar.setObjectName("menubar")
+        self.menuFile = QtWidgets.QMenu(self.menubar)
+        self.menuFile.setObjectName("menuFile")
+        MainWindow.setMenuBar(self.menubar)
+        self.statusbar = QtWidgets.QStatusBar(MainWindow)
+        self.statusbar.setObjectName("statusbar")
+        MainWindow.setStatusBar(self.statusbar)
+        self.menubar.addAction(self.menuFile.menuAction())
+
+        self.retranslateUi(MainWindow)
+        QtCore.QMetaObject.connectSlotsByName(MainWindow)
+
+    def retranslateUi(self, MainWindow):
+        _translate = QtCore.QCoreApplication.translate
+        MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
+        self.button1.setText(_translate("MainWindow", "Press Me"))
+        self.label1.setText(_translate("MainWindow", "Hello Pepaitus"))
+        self.menuFile.setTitle(_translate("MainWindow", "File"))
+'''class MyWindow(QMainWindow):
+    def __init__(self):
+        super (MyWindow, self).__init__()
+        self.setGeometry(200, 200, 300, 300)
+        self.setWindowTitle("Hello Pepo")
+        self.initUI()
+    def initUI(self):
+        self.label = QtWidgets.QLabel(self)
+        self.label.setText("Pepito")
+        self.label.move(50, 50)
+
+        self.b1 = QtWidgets.QPushButton(self)
+        self.b1.setText("Click me")
+        self.b1.clicked.connect(self.clicked)
+
+    def clicked(self):
+        self.label.setText("Button is pressed")
+        self.update()
+
+    def update(self):
+        self.label.adjustSize()
+
+def clicked():
+    print("clicked")'''
+def window():
+    app = QtWidgets.QApplication(sys.argv)
+    MainWindow = QtWidgets.QMainWindow()
+    ui = Ui_MainWindow()
+    ui.setupUi(MainWindow)
+    MainWindow.show()
+    sys.exit(app.exec_())
 
 if __name__ == '__main__':
 
@@ -93,5 +160,6 @@ if __name__ == '__main__':
     cv2.imshow("Result",result)
     cv2.waitKey(0)
     cv2.destroyAllWindows()'''
+    window()
 
 
