@@ -11,15 +11,60 @@ import PIL
 import mysql.connector
 import hashlib
 from datetime import datetime
+from Crypto.Cipher import AES
+from Crypto import Random
+from Crypto.Protocol.KDF import PBKDF2
+import pyaes, pbkdf2, binascii, secrets
+import base64
+
+def getKey(password):
+    passwordSalt = password;
+    key = pbkdf2.PBKDF2(password, passwordSalt).read(32)
+    print('AES encryption key:', binascii.hexlify(key))
+    return key
+
+
+def encrypt(key, data):
+    iv = 7
+    data = str(data)
+    aes = pyaes.AESModeOfOperationCTR(key, pyaes.Counter(iv))
+    ciphertext = aes.encrypt(data)
+    ciphertext = ciphertext.decode('utf8')
+    print('Encrypted:', ciphertext)
+
+    #print('Encrypted and formatted:', binascii.hexlify(ciphertext))
+    decrypt(key, ciphertext)
+
+def decrypt (key,encText):
+    print(encText)
+    encText = encText.encode('utf8')
+    iv = 7
+    aes = pyaes.AESModeOfOperationCTR(key, pyaes.Counter(7))
+    decrypted = aes.decrypt(encText)
+    print(decrypted)
+    print('Decrypted:', decrypted.decode('utf8'))
+    return decrypted.decode('utf8')
 
 def database_read(readable_hash):
     entries = []
-    string_to_execute = "select grade from test_db_1.grades where id_user = '" + readable_hash + "'"
+    decrypted_entries = []
+    string_to_execute = "select grades from test_db_1.grades"
     myCursor.execute(string_to_execute)
-    for i in myCursor:
-        print(i)
-        entries.append(str(i))
-    return entries
+    try:
+        result = myCursor.fetchall()
+        for i in result:
+            print(i)
+            entries.append(str(i[0]))
+        key = getKey(readable_hash)
+        print (entries[0])
+        temporal_dec_entry = decrypt(key, entries[0])
+        decrypted_entries.append(temporal_dec_entry)
+
+    except:
+        entries = []
+
+    return decrypted_entries
+
 def confidence(img,template):
   return  (cv2.matchTemplate(img, template, cv2.TM_CCOEFF_NORMED).max())
 
