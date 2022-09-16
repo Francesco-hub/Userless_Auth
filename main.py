@@ -13,12 +13,19 @@ import hashlib
 from datetime import datetime
 
 def database_read(readable_hash):
-    return
+    entries = []
+    string_to_execute = "select grade from test_db_1.grades where id_user = '" + readable_hash + "'"
+    myCursor.execute(string_to_execute)
+    for i in myCursor:
+        print(i)
+        entries.append(str(i))
+    return entries
 def confidence(img,template):
   return  (cv2.matchTemplate(img, template, cv2.TM_CCOEFF_NORMED).max())
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow, readable_hash):
+        entries = database_read(readable_hash)
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(800, 600)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
@@ -29,6 +36,7 @@ class Ui_MainWindow(object):
         self.listWidget_grades = QtWidgets.QListWidget(self.centralwidget)
         self.listWidget_grades.setGeometry(QtCore.QRect(0, 310, 331, 261))
         self.listWidget_grades.setObjectName("listWidget_grades")
+        self.listWidget_grades.addItems(entries)
         self.add_grade = QtWidgets.QPushButton(self.centralwidget)
         self.add_grade.setGeometry(QtCore.QRect(490, 430, 75, 23))
         self.add_grade.setObjectName("add_grade")
@@ -112,6 +120,7 @@ if __name__ == '__main__':
     myCursor = myDb.cursor()
 
 
+
     counter = 0
     for file in [file for file in os.listdir("assets/registered")]:
         if counter % 10 == 0:
@@ -179,7 +188,6 @@ if __name__ == '__main__':
             bytes = f.read()  # read entire file as bytes
             readable_hash = hashlib.sha256(bytes).hexdigest();
             print(readable_hash)
-
         #(cv2.imwrite(os.path.join(path, 'doll.jpg'), image))
     '''result = cv2.drawMatches(sample, kp1, image, kp2, mp, None)
     result = cv2.resize(result, None, fx=4, fy=4)
