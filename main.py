@@ -9,34 +9,45 @@ from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtWidgets import QApplication,QMainWindow
 import PIL
 import mysql.connector
+import hashlib
+from datetime import datetime
 
-
+def database_read(readable_hash):
+    return
 def confidence(img,template):
   return  (cv2.matchTemplate(img, template, cv2.TM_CCOEFF_NORMED).max())
 
 class Ui_MainWindow(object):
-    def setupUi(self, MainWindow):
+    def setupUi(self, MainWindow, readable_hash):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(815, 609)
+        MainWindow.resize(800, 600)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
-        self.button1 = QtWidgets.QPushButton(self.centralwidget)
-        self.button1.setGeometry(QtCore.QRect(290, 330, 221, 181))
-        self.button1.setObjectName("button1")
-        self.label1 = QtWidgets.QLabel(self.centralwidget)
-        self.label1.setGeometry(QtCore.QRect(360, 140, 221, 16))
-        self.label1.setObjectName("label1")
+        self.listView_grades = QtWidgets.QListView(self.centralwidget)
+        self.listView_grades.setGeometry(QtCore.QRect(0, 0, 331, 311))
+        self.listView_grades.setObjectName("listView_grades")
+        self.listWidget_grades = QtWidgets.QListWidget(self.centralwidget)
+        self.listWidget_grades.setGeometry(QtCore.QRect(0, 310, 331, 261))
+        self.listWidget_grades.setObjectName("listWidget_grades")
+        self.add_grade = QtWidgets.QPushButton(self.centralwidget)
+        self.add_grade.setGeometry(QtCore.QRect(490, 430, 75, 23))
+        self.add_grade.setObjectName("add_grade")
+        self.tableView_grades = QtWidgets.QTableView(self.centralwidget)
+        self.tableView_grades.setGeometry(QtCore.QRect(330, 0, 311, 291))
+        self.tableView_grades.setObjectName("tableView_grades")
+        self.number_grade = QtWidgets.QSpinBox(self.centralwidget)
+        self.number_grade.setGeometry(QtCore.QRect(500, 370, 61, 31))
+        self.number_grade.setMinimum(-2)
+        self.number_grade.setMaximum(12)
+        self.number_grade.setObjectName("number_grade")
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 815, 21))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 800, 21))
         self.menubar.setObjectName("menubar")
-        self.menuFile = QtWidgets.QMenu(self.menubar)
-        self.menuFile.setObjectName("menuFile")
         MainWindow.setMenuBar(self.menubar)
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
-        self.menubar.addAction(self.menuFile.menuAction())
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
@@ -44,9 +55,7 @@ class Ui_MainWindow(object):
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
-        self.button1.setText(_translate("MainWindow", "Press Me"))
-        self.label1.setText(_translate("MainWindow", "Hello Pepaitus"))
-        self.menuFile.setTitle(_translate("MainWindow", "File"))
+        self.add_grade.setText(_translate("MainWindow", "Add"))
 '''class MyWindow(QMainWindow):
     def __init__(self):
         super (MyWindow, self).__init__()
@@ -71,11 +80,11 @@ class Ui_MainWindow(object):
 
 def clicked():
     print("clicked")'''
-def window():
+def window(readable_hash):
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
-    ui.setupUi(MainWindow)
+    ui.setupUi(MainWindow, readable_hash)
     MainWindow.show()
     sys.exit(app.exec_())
 
@@ -92,10 +101,15 @@ if __name__ == '__main__':
     second_best_confidence_file = None
     third_best_confidence = 0
     third_best_confidence_file = None
+    readable_hash = None
     filename = None
     image = None
     kp1, kp2, mp = None, None, None
     h, w, _ = sample.shape
+    myDb = mysql.connector.connect(host="localhost", user="root", passwd="1234567898", database="test_db_1")
+    print("Succesfully connected to DB")
+    print("-----------------------------")
+    myCursor = myDb.cursor()
 
 
     counter = 0
@@ -105,7 +119,6 @@ if __name__ == '__main__':
         counter += 1
         fingerprint_image = cv2.imread("assets/registered/"+ file)
         temp_confidence = confidence(fingerprint_image,sample)
-        print(temp_confidence)
         if(temp_confidence > best_confidence):
             best_confidence = temp_confidence
             best_confidence_file = file
@@ -142,24 +155,37 @@ if __name__ == '__main__':
                 image = fingerprint_image
                 kp1, kp2, mp = keypoints_1, keypoints_2, match_points
 
-    print ("BEST CONFIDENCE: " + str(best_confidence))
-    print ("SECOND BEST CONFIDENCE: " + str(second_best_confidence))
-    print ("THIRD BEST CONFIDENCE: " + str(third_best_confidence))
-    print ("BEST CONFIDENCE FILE: " +str(best_confidence_file))
-    print ("SECOND BEST CONFIDENCE FILE: " +str(second_best_confidence_file))
-    print ("THIRD BEST CONFIDENCE FILE: " +str(third_best_confidence_file))
+    #print ("BEST CONFIDENCE: " + str(best_confidence))
+    #print ("SECOND BEST CONFIDENCE: " + str(second_best_confidence))
+    #print ("THIRD BEST CONFIDENCE: " + str(third_best_confidence))
+    #print ("BEST CONFIDENCE FILE: " +str(best_confidence_file))
+    #print ("SECOND BEST CONFIDENCE FILE: " +str(second_best_confidence_file))
+    #print ("THIRD BEST CONFIDENCE FILE: " +str(third_best_confidence_file))
     print("BEST MATCH: " + str(filename))
-    print("SCORE: " + str(best_score))
+    #print("SCORE: " + str(best_score))
     cv2.waitKey(0)
 
+
     if(filename==None):
-        cv2.imwrite(os.path.join("assets/registered", "Test1.BMP"), sample)
+        save_name = str(int(datetime.timestamp(datetime.now())))
+        cv2.imwrite(os.path.join("assets/registered", save_name + ".BMP"), sample)
+        matching_file_path = "assets/registered/"+ save_name +".BMP"
+        print("saving new image due to no coincidence")
+    else:
+        matching_file_path = "assets/registered/" + str(filename)
+        print("Using existing image coincidence")
+
+    with open(matching_file_path, "rb") as f:
+            bytes = f.read()  # read entire file as bytes
+            readable_hash = hashlib.sha256(bytes).hexdigest();
+            print(readable_hash)
+
         #(cv2.imwrite(os.path.join(path, 'doll.jpg'), image))
     '''result = cv2.drawMatches(sample, kp1, image, kp2, mp, None)
     result = cv2.resize(result, None, fx=4, fy=4)
     cv2.imshow("Result",result)
     cv2.waitKey(0)
     cv2.destroyAllWindows()'''
-    window()
+    window(readable_hash)
 
 
