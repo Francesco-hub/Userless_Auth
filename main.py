@@ -1,4 +1,6 @@
 import sys
+from encodings.base64_codec import base64_encode, base64_decode
+
 import easygui
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
@@ -16,9 +18,11 @@ from Crypto import Random
 from Crypto.Protocol.KDF import PBKDF2
 import pyaes, pbkdf2, binascii, secrets
 import base64
+import glob
+from PIL import Image
 
-def getKey(password):
-    passwordSalt = password;
+def getKey(password, user_id):
+    passwordSalt = user_id;
     key = pbkdf2.PBKDF2(password, passwordSalt).read(32)
     print('AES encryption key:', binascii.hexlify(key))
     return key
@@ -29,48 +33,66 @@ def encrypt(key, data):
     data = str(data)
     aes = pyaes.AESModeOfOperationCTR(key, pyaes.Counter(iv))
     ciphertext = aes.encrypt(data)
+    print(ciphertext)
+    ciphertext = binascii.hexlify(ciphertext)
     ciphertext = ciphertext.decode('utf8')
-    print('Encrypted:', ciphertext)
+    print('Encrypted: ', ciphertext)
+
+    decrypt(key, ciphertext)
+    return ciphertext
 
     #print('Encrypted and formatted:', binascii.hexlify(ciphertext))
-    decrypt(key, ciphertext)
 
-def decrypt (key,encText):
-    print(encText)
-    encText = encText.encode('utf8')
+def decrypt (key, encText):
+    encText = binascii.unhexlify(encText)
+    print("llalalal " + str(encText))
     iv = 7
-    aes = pyaes.AESModeOfOperationCTR(key, pyaes.Counter(7))
+    print (str(encText))
+    aes = pyaes.AESModeOfOperationCTR(key, pyaes.Counter(iv))
     decrypted = aes.decrypt(encText)
-    print(decrypted)
+    print('Decrypted1 ' + str(decrypted))
     print('Decrypted:', decrypted.decode('utf8'))
     return decrypted.decode('utf8')
 
-def database_read(readable_hash):
+def database_read(readable_hash, imageId):
     entries = []
     decrypted_entries = []
-    string_to_execute = "select grades from test_db_1.grades"
+    string_to_execute = "select user_grade from test_db_1.grades_test where user_id = "+ imageId
     myCursor.execute(string_to_execute)
     try:
         result = myCursor.fetchall()
         for i in result:
             print(i)
-            entries.append(str(i[0]))
-        key = getKey(readable_hash)
+            entries.append((i[0]))
+        key = getKey(readable_hash, imageId)
         print (entries[0])
-        temporal_dec_entry = decrypt(key, entries[0])
-        decrypted_entries.append(temporal_dec_entry)
+
+        for i in range(0, len(entries)):
+            print (i)
+            temporal_dec_entry = decrypt(key, str(entries[i]))
+            decrypted_entries.append(temporal_dec_entry)
 
     except:
-        entries = []
+        decrypted_entries = []
 
     return decrypted_entries
 
 def confidence(img,template):
   return  (cv2.matchTemplate(img, template, cv2.TM_CCOEFF_NORMED).max())
 
+
+def addGrade(selected_grade, readable_hash, user_id):
+    key = getKey(readable_hash,user_id)
+    print(readable_hash)
+    print("User Id = " + user_id)
+    encGrade = encrypt(key, selected_grade)
+    print (str(encGrade))
+
+
+
 class Ui_MainWindow(object):
-    def setupUi(self, MainWindow, readable_hash):
-        entries = database_read(readable_hash)
+    def setupUi(self, MainWindow, readable_hash, imageId):
+        entries = database_read(readable_hash, imageId)
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(800, 600)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
@@ -101,7 +123,7 @@ class Ui_MainWindow(object):
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
-
+        self.add_grade.clicked.connect(lambda: addGrade(self.number_grade.value(), readable_hash, imageId))
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
@@ -109,6 +131,8 @@ class Ui_MainWindow(object):
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "MainWindow"))
         self.add_grade.setText(_translate("MainWindow", "Add"))
+
+
 '''class MyWindow(QMainWindow):
     def __init__(self):
         super (MyWindow, self).__init__()
@@ -133,11 +157,11 @@ class Ui_MainWindow(object):
 
 def clicked():
     print("clicked")'''
-def window(readable_hash):
+def window(readable_hash, imageId):
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
-    ui.setupUi(MainWindow, readable_hash)
+    ui.setupUi(MainWindow, readable_hash, imageId)
     MainWindow.show()
     sys.exit(app.exec_())
 
@@ -157,6 +181,7 @@ if __name__ == '__main__':
     readable_hash = None
     filename = None
     image = None
+    imageId = None
     kp1, kp2, mp = None, None, None
     h, w, _ = sample.shape
     myDb = mysql.connector.connect(host="localhost", user="root", passwd="1234567898", database="test_db_1")
@@ -229,16 +254,18 @@ if __name__ == '__main__':
         matching_file_path = "assets/registered/" + str(filename)
         print("Using existing image coincidence")
 
-    with open(matching_file_path, "rb") as f:
-            bytes = f.read()  # read entire file as bytes
+    with open(matching_file_path, "rb") as image:
+            b= image.read()
+            imagename = image.name.replace('assets/registered/', '')
+            imageId = imagename.replace('.BMP', '')
+            bytes = bytearray(b)  # read entire file as bytes
             readable_hash = hashlib.sha256(bytes).hexdigest();
-            print(readable_hash)
         #(cv2.imwrite(os.path.join(path, 'doll.jpg'), image))
     '''result = cv2.drawMatches(sample, kp1, image, kp2, mp, None)
     result = cv2.resize(result, None, fx=4, fy=4)
     cv2.imshow("Result",result)
     cv2.waitKey(0)
     cv2.destroyAllWindows()'''
-    window(readable_hash)
+    window(readable_hash, imageId)
 
 
