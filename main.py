@@ -21,8 +21,10 @@ import base64
 import glob
 from PIL import Image
 
-def getKey(password, user_id):
-    passwordSalt = user_id;
+currentSalt = None
+
+def getKey(password, salt):
+    passwordSalt = salt;
     key = pbkdf2.PBKDF2(password, passwordSalt).read(32)
     print('AES encryption key:', binascii.hexlify(key))
     return key
@@ -43,26 +45,30 @@ def encrypt(key, data):
 
 def decrypt (key, encText):
     encText = binascii.unhexlify(encText)
-    print("llalalal " + str(encText))
     iv = 7
     print (str(encText))
     aes = pyaes.AESModeOfOperationCTR(key, pyaes.Counter(iv))
     decrypted = aes.decrypt(encText)
-    print('Decrypted1 ' + str(decrypted))
-    print('Decrypted:', decrypted.decode('utf8'))
     return decrypted.decode('utf8')
 
 def database_read(readable_hash, imageId):
     entries = []
     decrypted_entries = []
-    string_to_execute = "select user_grade from test_db_1.grades_test where user_id = "+ imageId
-    myCursor.execute(string_to_execute)
+    currentSalt = None
+    imageIdHash = hashlib.sha256(imageId.encode('utf-8')).hexdigest()
+    print (imageIdHash)
+    string_to_execute = "select user_grade, salt from test_db_1.grades_test where user_id = %s"
+    myCursor.execute(string_to_execute, (imageIdHash,))
     try:
         result = myCursor.fetchall()
         for i in result:
             print(i)
             entries.append((i[0]))
-        key = getKey(readable_hash, imageId)
+            currentSalt = i[1]
+        if(currentSalt == None):
+            return decrypted_entries, None
+        else:
+            key = getKey(readable_hash, currentSalt)
         print (entries[0])
 
         for i in range(0, len(entries)):
@@ -73,29 +79,50 @@ def database_read(readable_hash, imageId):
     except:
         decrypted_entries = []
 
-    return decrypted_entries
+    return decrypted_entries, currentSalt
 
 def confidence(img,template):
   return  (cv2.matchTemplate(img, template, cv2.TM_CCOEFF_NORMED).max())
 
 
-def addGrade(selected_grade, readable_hash, user_id):
-    key = getKey(readable_hash,user_id)
+def addGrade(readable_hash, user_id, uiWindow, currentSalt):
+    if(currentSalt == None):
+        currentSalt = os.urandom(16)
+        currentSalt = binascii.hexlify(currentSalt)
+        currentSalt = currentSalt.decode('utf8')
+        uiWindow.existingSalt = currentSalt
+    imageIdHash = hashlib.sha256(user_id.encode('utf-8')).hexdigest()
+    key = getKey(readable_hash, currentSalt)
     print(readable_hash)
+
+    selected_subject = uiWindow.checkSelectedSubject()
+    print(selected_subject)
+    selected_date = uiWindow.checkDate()
+    print(selected_date)
+    selected_grade = uiWindow.checkSelectedGrade()
     print("User Id = " + user_id)
-    encGrade = encrypt(key, "Secure software development: " + str(selected_grade))
+    dataString = str(selected_subject) +" | " + str(selected_grade) + " | " + str(selected_date)
+    encGrade = encrypt(key,dataString)
     print (str(encGrade))
-    string_to_execute = "insert into grades_test(user_id, user_grade) values (%s, %s)"
-    val = (str(user_id), str(encGrade))
+    string_to_execute = "insert into grades_test(user_id, user_grade, salt) values (%s, %s, %s)"
+    val = (str(imageIdHash), str(encGrade), str(currentSalt))
     myCursor.execute(string_to_execute, val)
     myDb.commit()
     print("Db inserted")
+    entries = database_read(readable_hash, imageId)[0]
+    uiWindow.listWidget_grades.clear()
+    uiWindow.listWidget_grades.addItems(entries)
 
 
 
 class Ui_MainWindow(object):
+    entries = None
+    existingSalt = None
+    def initData(self, readable_hash, imageId):
+        dbRead = database_read(readable_hash, imageId)
+        self.entries = dbRead[0]
+        self.existingSalt = dbRead[1]
     def setupUi(self, MainWindow, readable_hash, imageId):
-        entries = database_read(readable_hash, imageId)
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(800, 600)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
@@ -103,11 +130,11 @@ class Ui_MainWindow(object):
         self.listWidget_grades = QtWidgets.QListWidget(self.centralwidget)
         self.listWidget_grades.setGeometry(QtCore.QRect(0, 40, 271, 531))
         self.listWidget_grades.setObjectName("listWidget_grades")
-        self.listWidget_grades.addItems(entries)
+        self.listWidget_grades.addItems(self.entries)
         self.add_grade = QtWidgets.QPushButton(self.centralwidget)
         self.add_grade.setGeometry(QtCore.QRect(290, 470, 141, 31))
         self.add_grade.setObjectName("add_grade")
-        self.add_grade.clicked.connect(lambda: addGrade(self.number_grade.value(), readable_hash, imageId))
+        self.add_grade.clicked.connect(lambda: addGrade(readable_hash, imageId, self, self.existingSalt))
         self.text_subject = QtWidgets.QLineEdit(self.centralwidget)
         self.text_subject.setGeometry(QtCore.QRect(290, 420, 291, 21))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Ignored)
@@ -265,6 +292,21 @@ class Ui_MainWindow(object):
         self.label_10.setText(_translate("MainWindow", "12"))
         self.label_11.setText(_translate("MainWindow", "GRADE"))
 
+    def checkSelectedGrade(self):
+        if self.radioMinus2.isChecked(): return -2
+        if self.radio0.isChecked(): return 0
+        if self.radio2.isChecked(): return 2
+        if self.radio4.isChecked(): return 4
+        if self.radio7.isChecked(): return 7
+        if self.radio10.isChecked(): return 10
+        if self.radio12.isChecked(): return 12
+        else: return None
+    def checkSelectedSubject(self):
+        return self.text_subject.text()
+
+    def checkDate(self):
+        return self.dateEdit.text()
+
 
 '''class MyWindow(QMainWindow):
     def __init__(self):
@@ -294,6 +336,7 @@ def window(readable_hash, imageId):
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
+    ui.initData(readable_hash, imageId)
     ui.setupUi(MainWindow, readable_hash, imageId)
     MainWindow.show()
     sys.exit(app.exec_())
@@ -376,7 +419,6 @@ if __name__ == '__main__':
     print("BEST MATCH: " + str(filename))
     #print("SCORE: " + str(best_score))
     cv2.waitKey(0)
-
 
     if(filename==None):
         save_name = str(int(datetime.timestamp(datetime.now())))
