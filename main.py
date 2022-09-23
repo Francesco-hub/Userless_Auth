@@ -1,25 +1,14 @@
 import sys
-from encodings.base64_codec import base64_encode, base64_decode
-
-import easygui
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename
 import cv2
-import numpy as np
 import os
 from PyQt5 import QtWidgets, QtCore, QtGui
-from PyQt5.QtWidgets import QApplication,QMainWindow
-import PIL
 import mysql.connector
 import hashlib
 from datetime import datetime
-from Crypto.Cipher import AES
-from Crypto import Random
-from Crypto.Protocol.KDF import PBKDF2
-import pyaes, pbkdf2, binascii, secrets
-import base64
-import glob
-from PIL import Image
+import pyaes, pbkdf2, binascii
+
 
 currentSalt = None
 
@@ -102,7 +91,7 @@ def addGrade(readable_hash, user_id, uiWindow, currentSalt):
     selected_grade = uiWindow.checkSelectedGrade()
     print("User Id = " + user_id)
     dataString = str(selected_subject) +" | " + str(selected_grade) + " | " + str(selected_date)
-    encGrade = encrypt(key,dataString)
+    encGrade = encrypt(key, dataString)
     print (str(encGrade))
     string_to_execute = "insert into grades_test(user_id, user_grade, salt) values (%s, %s, %s)"
     val = (str(imageIdHash), str(encGrade), str(currentSalt))
