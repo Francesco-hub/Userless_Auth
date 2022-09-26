@@ -7,6 +7,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 import mysql.connector
 import hashlib
 from datetime import datetime
+from re import search
 import pyaes, pbkdf2, binascii
 
 
@@ -74,44 +75,57 @@ def confidence(img,template):
   return  (cv2.matchTemplate(img, template, cv2.TM_CCOEFF_NORMED).max())
 
 
-def addGrade(readable_hash, user_id, uiWindow, currentSalt):
-    if(currentSalt == None):
-        currentSalt = os.urandom(16)
-        currentSalt = binascii.hexlify(currentSalt)
-        currentSalt = currentSalt.decode('utf8')
-        uiWindow.existingSalt = currentSalt
-    imageIdHash = hashlib.sha256(user_id.encode('utf-8')).hexdigest()
-    key = getKey(readable_hash, currentSalt)
-    print(readable_hash)
+def validateInputData(selected_subject, selected_grade, selected_date):
+    validations = ['+','ALTER','CREATE','DELETE','DROP','EXEC','(UTE)','{0,1}','INSERT','+INTO','MERGE','SELECT', 'UPDATE','UNION','ALL',"'", '(', '[','@','"',]
+    for s in validations:
+        try:
+            if selected_subject.upper().find(s) != -1:
+                return False
+        except(Exception):
+                return False
+    if(selected_grade==None): return False
+    if(selected_date==None): return False
+    return True
 
+
+def addGrade(readable_hash, user_id, uiWindow, currentSalt):
     selected_subject = uiWindow.checkSelectedSubject()
-    print(selected_subject)
     selected_date = uiWindow.checkDate()
-    print(selected_date)
     selected_grade = uiWindow.checkSelectedGrade()
-    print("User Id = " + user_id)
-    dataString = str(selected_subject) +" | " + str(selected_grade) + " | " + str(selected_date)
-    encGrade = encrypt(key, dataString)
-    print (str(encGrade))
-    string_to_execute = "insert into grades_test(user_id, user_grade, salt) values (%s, %s, %s)"
-    val = (str(imageIdHash), str(encGrade), str(currentSalt))
-    myCursor.execute(string_to_execute, val)
-    myDb.commit()
-    print("Db inserted")
-    entries = database_read(readable_hash, imageId)[0]
-    uiWindow.listWidget_grades.clear()
-    uiWindow.listWidget_Grade.clear()
-    uiWindow.listWidget_Date.clear()
-    temporal_subject = []
-    temporal_grade = []
-    temporal_date = []
-    for i in range(len(entries)):
-        temporal_subject.append(entries[i].split("|")[0])
-        temporal_grade.append(entries[i].split("|")[1])
-        temporal_date.append(entries[i].split("|")[2])
-    uiWindow.listWidget_grades.addItems(temporal_subject)
-    uiWindow.listWidget_Date.addItems(temporal_date)
-    uiWindow.listWidget_Grade.addItems(temporal_grade)
+    isInputValid = validateInputData(selected_subject, selected_grade, selected_date)
+    if(isInputValid):
+        if (currentSalt == None):
+            currentSalt = os.urandom(16)
+            currentSalt = binascii.hexlify(currentSalt)
+            currentSalt = currentSalt.decode('utf8')
+            uiWindow.existingSalt = currentSalt
+        imageIdHash = hashlib.sha256(user_id.encode('utf-8')).hexdigest()
+        key = getKey(readable_hash, currentSalt)
+        print(readable_hash)
+
+
+        dataString = str(selected_subject) + " | " + str(selected_grade) + " | " + str(selected_date)
+        encGrade = encrypt(key, dataString)
+        string_to_execute = "insert into grades_test(user_id, user_grade, salt) values (%s, %s, %s)"
+        val = (str(imageIdHash), str(encGrade), str(currentSalt))
+        myCursor.execute(string_to_execute, val)
+        myDb.commit()
+        entries = database_read(readable_hash, imageId)[0]
+        uiWindow.listWidget_grades.clear()
+        uiWindow.listWidget_Grade.clear()
+        uiWindow.listWidget_Date.clear()
+        temporal_subject = []
+        temporal_grade = []
+        temporal_date = []
+        for i in range(len(entries)):
+            temporal_subject.append(entries[i].split("|")[0])
+            temporal_grade.append(entries[i].split("|")[1])
+            temporal_date.append(entries[i].split("|")[2])
+        uiWindow.listWidget_grades.addItems(temporal_subject)
+        uiWindow.listWidget_Date.addItems(temporal_date)
+        uiWindow.listWidget_Grade.addItems(temporal_grade)
+    else:
+        uiWindow.setInvalidSubject("Invalid")
 
 
 class Ui_MainWindow(object):
@@ -342,7 +356,8 @@ class Ui_MainWindow(object):
     def checkDate(self):
         return self.dateEdit.text()
 
-
+    def setInvalidSubject(self, text):
+        self.text_subject.setText(text)
 '''class MyWindow(QMainWindow):
     def __init__(self):
         super (MyWindow, self).__init__()
@@ -396,8 +411,6 @@ if __name__ == '__main__':
     kp1, kp2, mp = None, None, None
     h, w, _ = sample.shape
     myDb = mysql.connector.connect(host="localhost", user="root", passwd="1234567898", database="test_db_1")
-    print("Succesfully connected to DB")
-    print("-----------------------------")
     myCursor = myDb.cursor()
 
 
