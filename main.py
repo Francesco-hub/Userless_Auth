@@ -410,7 +410,7 @@ if __name__ == '__main__':
     imageId = None
     kp1, kp2, mp = None, None, None
     h, w, _ = sample.shape
-    myDb = mysql.connector.connect(host="localhost", user="root", passwd="1234567898", database="test_db_1")
+    myDb = mysql.connector.connect(host="localhost", user="root", passwd="", database="test_db_1")
     myCursor = myDb.cursor()
 
 
